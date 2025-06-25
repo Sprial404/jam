@@ -151,6 +151,7 @@ int lexer_run(Lexer *lexer)
         lexeme[length] = '\0';
 
         push_token(lexer, tok_string, lexeme);
+        free(lexeme); // Free the lexeme  since push token will copy it.
 
         lexer->current += 1; // Skip the closing quote.
         continue;
@@ -181,6 +182,8 @@ int lexer_run(Lexer *lexer)
         lexeme[length] = '\0';
 
         push_token(lexer, tok_number, lexeme);
+        free(lexeme); // Free the lexeme since push token will copy it.
+
         continue;
       } else if (isalpha(*lexer->current)) {
         handle_identifier(lexer);
@@ -238,9 +241,21 @@ static void push_token(Lexer *lexer, Token type, char *lexeme)
 {
   ensure_capacity(lexer);
 
-  lexer->tokens[lexer->token_count].type   = type;
-  lexer->tokens[lexer->token_count].lexeme = lexeme;
-  lexer->tokens[lexer->token_count].length = lexeme ? strlen(lexeme) : 0;
+  lexer->tokens[lexer->token_count].type = type;
+
+  if (lexeme != NULL) {
+    char *allocated_lexeme = strdup(lexeme);
+    if (allocated_lexeme == NULL) {
+      fprintf(stderr, "Memory allocation failed\n");
+      exit(EXIT_FAILURE); // Error: Memory allocation failure.
+    }
+
+    lexer->tokens[lexer->token_count].lexeme = allocated_lexeme;
+    lexer->tokens[lexer->token_count].length = strlen(allocated_lexeme);
+  } else {
+    lexer->tokens[lexer->token_count].lexeme = NULL;
+    lexer->tokens[lexer->token_count].length = 0;
+  }
 
   lexer->locations[lexer->token_count].line   = lexer->line_number;
   lexer->locations[lexer->token_count].column = (size_t)(lexer->current - lexer->line_start);
@@ -302,6 +317,7 @@ static void handle_identifier(Lexer *lexer)
   }
 
   push_token(lexer, token_type, lexeme);
+  free(lexeme); // Free the lexeme  since push token will copy it.
 }
 
 const char *token_type_to_string(Token type)
